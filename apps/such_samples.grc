@@ -13,6 +13,10 @@
       <value></value>
     </param>
     <param>
+      <key>window_size</key>
+      <value>1280, 1024</value>
+    </param>
+    <param>
       <key>category</key>
       <value>Custom</value>
     </param>
@@ -68,10 +72,6 @@
       <key>title</key>
       <value>"Such Samples, %s Wow!"%(filename)</value>
     </param>
-    <param>
-      <key>window_size</key>
-      <value>1280, 1024</value>
-    </param>
   </block>
   <block>
     <key>variable_qtgui_range</key>
@@ -85,7 +85,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -148,7 +148,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -226,7 +226,7 @@
     </param>
     <param>
       <key>label</key>
-      <value></value>
+      <value>XMIT</value>
     </param>
     <param>
       <key>short_id</key>
@@ -238,7 +238,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>/tmp/data</value>
+      <value>/tmp/psk_ldpc_xmit.dat</value>
     </param>
   </block>
   <block>
@@ -288,7 +288,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -405,7 +405,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -491,7 +491,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -534,7 +534,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -604,6 +604,49 @@
       <value>0</value>
     </param>
   </block>
+  <block>
+    <key>pyqt_table</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>columns</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(864, 147)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>pyqt_table_0</value>
+    </param>
+    <param>
+      <key>row_id</key>
+      <value>"filename"</value>
+    </param>
+  </block>
   <connection>
     <source_block_id>pyqt_file_message_souce_0</source_block_id>
     <sink_block_id>blocks_message_debug_0</sink_block_id>
@@ -637,6 +680,12 @@
   <connection>
     <source_block_id>pyqt_file_message_souce_0</source_block_id>
     <sink_block_id>pyqt_pdu_lambda_0</sink_block_id>
+    <source_key>pdus</source_key>
+    <sink_key>pdus</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>pyqt_file_message_souce_0</source_block_id>
+    <sink_block_id>pyqt_table_0</sink_block_id>
     <source_key>pdus</source_key>
     <sink_key>pdus</sink_key>
   </connection>

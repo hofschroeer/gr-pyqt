@@ -35,7 +35,7 @@ class table(gr.sync_block, QtGui.QTableWidget):
     for those in order to just extract the desired values and feed them into the table.
 
     TODO: give users the chance to NOT filter the meta field
-    TODO: give users the chance to NOT specify a unique id
+    TODO: give users the chance to NOT specify a unique id (meaning there will be no way to update rows)
 
     Approach:
     1. Get the message and extract meta field
@@ -51,90 +51,135 @@ class table(gr.sync_block, QtGui.QTableWidget):
         QtGui.QTableWidget.__init__(self, *args)
         self.message_port_register_in(pmt.intern("pdus"))
         self.set_msg_handler(pmt.intern("pdus"), self.handle_input)
-
+        self.blkname=blkname
+        self.log = gr.logger("table_log")
         ## table setup
+        self.rowcount = 0
+        self.columncount = 0
 
-        # if both row_id and columns are set
-        # assert that row_id is present in the list of columns
-        # and pre-set column headers
+        self.columns = columns
+        self.column_dict = {} # mapping aid for column indices
+        self.filter_columns = False
+        self.tmp_item = None
         if row_id is not None:
             self.row_id = row_id
             self.ids = {} # mapping aid for identifiers
             # set identifier column
-            item = QtGui.QTableWidgetItem(row_id)
-            self.insertColumn(0)
-            self.setHorizontalHeaderItem(0, item)
-            self.column_dict = {} # mapping aid for column indices
-            self.column_dict[self.row_id] = 0
+            self.insertColumn(self.columncount)
+            self.tmp_item = QtGui.QTableWidgetItem(row_id)
+            self.setHorizontalHeaderItem(self.columncount, self.tmp_item)
+            self.columncount += 1
 
             if columns is not None:
-                assert(row_id in columns)
-                self.columns = columns
+                self.filter_columns = True
+                # if columns are given, pre-set table header
                 # set other column headers
-                for idx,column in enumerate(columns):
-                    if column is not self.row_id:
-                        item = QtGui.QTableWidgetItem(column)
-                        item.setBackground(QtGui.QColor(225,225,225))
-                        self.insertColumn(idx)
-                        self.setHorizontalHeaderItem(idx, item)
-                        self.column_dict[column] = idx
-            self.setColumnCount(len(self.columns))
-        else:
-            print("This setting is not supported yet")
+                for col in columns:
+                    if col is not self.row_id: # assert we dont have 2 id columns
+                        self.insertColumn(self.columncount)
+                        self.tmp_item = QtGui.QTableWidgetItem(col)
+                        # TODO: this could be a qt qss style param
+                        self.tmp_item.setBackground(QtGui.QColor(225,225,225))
 
-        self.horizontalHeader().setStretchLastSection(True)
+                        self.setHorizontalHeaderItem(self.columncount, self.tmp_item)
+                        self.column_dict[col] = self.columncount
+                        self.columncount += 1
+            else:
+                # no columns were set. in this case, take every meta field entry
+                # that comes along
+                self.log.info("No column filter specified. {0} will take all the meta field \
+entrys it can gather!".format(self.blkname))
+        else:
+            self.log.warn("Please support a table row identifier!")
+
+        self.horizontalHeader().setResizeMode(1)
         # make table non-writable
         self.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.setSortingEnabled(True)
-        self.rowcount = 0
 
     def handle_input(self, pdu):
         #self.setSortingEnabled(False)
-        # we expect a pdu
-        if not pmt.is_pair(pdu):
-            print("Message is not a PDU")
-            return
-        meta = pmt.car(pdu)
-        if not pmt.is_dict(meta):
-            print("No meta field present")
-            return
 
-        meta_dict = pmt.to_python(meta)
+        ######################## Input Checks ########################
+        # we expect a pdu (or just a dictionary)
+        if not pmt.is_pair(pdu) and not pmt.is_dict(pdu):
+            self.log.debug("Message must be a PDU or a dictionary")
+            return
+        elif pmt.is_pair(pdu): # up to now, pdu vector field is ignored
+            meta = pmt.car(pdu)
+            if not pmt.is_dict(meta):
+                self.log.debug("No meta field present")
+                return
+            meta_dict = pmt.to_python(meta)
+        elif pmt.is_dict(pdu):
+            meta_dict = pmt.to_python(pdu)
+        else:
+            self.log.emerg("Something weird happened")
+        ##############################################################
+
+
         # for now, we insist on having the row_id pmt within the meta field
         if meta_dict.has_key(self.row_id):
-            # get the current row identifier
-            id_value = meta_dict[self.row_id]
+            # get the current row identifier and remove corresponding key
+            id_value = meta_dict.pop(self.row_id)
             cur_idx = self.rowcount
             create_new_row = id_value not in self.ids.keys()
 
             if create_new_row:
-                #print("Creating new Table Entry with "+str(id_value))
-                tab_item = QtGui.QTableWidgetItem(str(id_value))
-                tab_item.setData(QtCore.Qt.EditRole, id_value)
-                tab_item.setBackground(QtGui.QColor(225,225,225))
-                self.setRowCount(self.rowcount + 1)
-                self.setItem(self.rowcount, 0, tab_item)
-                self.ids[id_value] = tab_item
+                #self.log.debug("Creating new Table Entry with "+str(id_value))
+                self.insertRow(self.rowcount)
+                self.tmp_item = QtGui.QTableWidgetItem(str(id_value))
+                self.tmp_item.setData(QtCore.Qt.EditRole, id_value)
+                self.tmp_item.setBackground(QtGui.QColor(225,225,225))
+                #self.setRowCount(self.rowcount+1)
+                self.setItem(self.rowcount, 0, self.tmp_item)
+                self.ids[id_value] = self.tmp_item
+                self.rowcount += 1
             else:
-                #print("Updating Table Entry " + str(id_value))
+                #self.log.debug("Updating Table Entry " + str(id_value))
                 # if row id already exists, get and use the respective row idx
                 cur_idx = self.ids[id_value].row()
 
-            for col, idx in self.column_dict.iteritems():
-                if meta_dict.has_key(col) and col is not self.row_id:
-                    value = meta_dict[col]
-                    # for now, we wont allow meta field entrys other than the specified columns
-                    tab_item = QtGui.QTableWidgetItem(str(value))
-                    tab_item.setData(QtCore.Qt.EditRole, value)
-                    self.setItem(cur_idx, idx, tab_item)
+            if self.filter_columns:
+                for col, idx in self.column_dict.iteritems():
+                    if meta_dict.has_key(col):
+                        value = meta_dict[col]
+                        # for now, we wont allow meta field entrys other than the specified columns
+                        self.tmp_item = QtGui.QTableWidgetItem(str(value))
+                        self.tmp_item.setData(QtCore.Qt.EditRole, value)
+                        self.setItem(cur_idx, idx, self.tmp_item)
+            else:
+                for col, value in meta_dict.iteritems():
+                    print("Col={0}, Value={1}".format(col, value))
+                    if self.column_dict.has_key(col):
+                        self.log.debug("Column is present at col: "+str(self.column_dict[col]))
+                        self.tmp_item = QtGui.QTableWidgetItem(str(col))
+                    else:
+                        self.log.debug("Setting new Column: "+ str(col))
+                        self.insertColumn(self.columncount)
+                        self.tmp_item = QtGui.QTableWidgetItem(str(col))
+                        # TODO: this could be a qt qss style param
+                        self.tmp_item.setBackground(QtGui.QColor(225,225,225))
 
-            if create_new_row:
-                self.rowcount += 1
-                self.setRowCount(self.rowcount)
+                        self.setHorizontalHeaderItem(self.columncount, self.tmp_item)
+                        self.column_dict[col] = self.columncount
+                        self.tmp_item = QtGui.QTableWidgetItem(str(col))
+                        self.columncount +=1
+                        self.log.debug("Columncount is now: "+str(self.columncount))
+
+                    # now set data
+                    self.tmp_item.setData(QtCore.Qt.DisplayRole, str(value))
+                    self.tmp_item.setData(QtCore.Qt.EditRole, value)
+                    self.setItem(cur_idx, self.column_dict[col], self.tmp_item)
+
         else:
-            print("Meta Field "+self.row_id+" not found.")
+            self.log.info("Meta Field "+self.row_id+" not found.")
 
         #self.setSortingEnabled(True)
+    def insert_cell(self, row, col):
+        pass
+    def update_cell(self, row, col):
+        pass
 
     def work(self, input_items, output_items):
         pass
